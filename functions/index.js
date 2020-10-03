@@ -10,7 +10,15 @@ const {
   unlikeScream,
   deleteScream
 } = require('./handlers/screams')
-const { signUp, login, uploadImage, addUserDetails, getAuthenticatedUser } = require('./handlers/users')
+const {
+  signUp,
+  login,
+  uploadImage,
+  addUserDetails,
+  getAuthenticatedUser,
+  getUserDetails,
+  markNotificationRead
+} = require('./handlers/users')
 const FBauth = require('./util/FBauth')
 
 // * Scream Route
@@ -33,6 +41,8 @@ app.post('/login', login)
 app.post('/user/image', FBauth, uploadImage)
 app.post('/user', FBauth, addUserDetails)
 app.get('/user', FBauth, getAuthenticatedUser)
+app.get('/user/:handle', getUserDetails)
+app.post('/notifications', FBauth, markNotificationRead)
 //*  https://baseurl.com/api/
 // functions.https.onRequest sẽ bắt được sự kiện khi có request đến
 // Tạo ra functions kết hợp vs express để tạo ra url như thế này https://baseurl.com/api/screams
@@ -46,7 +56,7 @@ exports.createNotifycationOnLike = functions.firestore.document('likes/{id}')
     db.doc(`/screams/${snapshot.data().screamId}`).get()
       .then(doc => {
         if (doc.exists) {
-          return db.doc(`/nofifications/${snapshot.id}`).set({
+          return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date(),
             recipient: doc.data().userHandle,
             sender: doc.data().userHandle,
@@ -64,7 +74,7 @@ exports.createNotifycationOnLike = functions.firestore.document('likes/{id}')
 exports.deleteNotifycationOnUnlike = functions.firestore.document('likes/{id}')
   .onDelete(snapshot => {
     console.log("SNAPSHOT Delete Unlike: ", snapshot);
-    return db.doc(`/nofifications/${snapshot.id}`).delete()
+    return db.doc(`/notifications/${snapshot.id}`).delete()
       .catch(err => {
         console.error(err);
       })
@@ -79,7 +89,7 @@ exports.createNotifycationOnComment = functions.firestore.document('comments/{id
       .then(doc => {
         if (doc.exists) {
           console.log("DOC exists")
-          return db.doc(`/nofifications/${snapshot.id}`).set({
+          return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date(),
             recipient: doc.data().userHandle,
             sender: doc.data().userHandle,
