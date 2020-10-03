@@ -1,9 +1,18 @@
-const { admin, db } = require('../util/admin');
+const {
+  admin,
+  db
+} = require('../util/admin');
 const firebase = require('firebase');
 const firebaseConfig = require('../util/config')
 firebase.initializeApp(firebaseConfig);
-const { validateSignupData, validateLoginData, reducerUserDetails } = require('../util/validator');
-const { user } = require('firebase-functions/lib/providers/auth');
+const {
+  validateSignupData,
+  validateLoginData,
+  reducerUserDetails
+} = require('../util/validator');
+const {
+  user
+} = require('firebase-functions/lib/providers/auth');
 
 //TODO  user Sign up
 module.exports.signUp = (req, res) => {
@@ -14,7 +23,10 @@ module.exports.signUp = (req, res) => {
     handle: req.body.handle
   }
 
-  const { valid, errors } = validateSignupData(newUser);
+  const {
+    valid,
+    errors
+  } = validateSignupData(newUser);
   if (!valid) {
     return res.status(400).json(errors)
   }
@@ -28,7 +40,9 @@ module.exports.signUp = (req, res) => {
   admin.firestore().doc(`/users/${newUser.handle}`).get()
     .then(doc => {
       if (doc.exists) {
-        return res.status(400).json({ handle: `this handle is already taken !` })
+        return res.status(400).json({
+          handle: `this handle is already taken !`
+        })
       } else {
         // Tạo user và lưu vào aithentication
         return firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password) // Trả về Promise  (data)                
@@ -52,14 +66,20 @@ module.exports.signUp = (req, res) => {
       admin.firestore().doc(`/users/${newUser.handle}`).set(userCredential) // Trả về 1 Promise   
     })
     .then(() => {
-      return res.status(201).json({ token })
+      return res.status(201).json({
+        token
+      })
     })
     .catch(err => { // Bắt lỗi khi post lên user đã tồn tại
       console.log(err)
       if (err.code === "auth/email-already-in-use") {
-        return res.status(500).json({ email: `Email is already used` })
+        return res.status(500).json({
+          email: `Email is already used`
+        })
       } else {
-        return res.status(500).json({ err: err.code })
+        return res.status(500).json({
+          general: 'Somthing went wrong, please try again'
+        })
       }
     })
 }
@@ -71,7 +91,10 @@ module.exports.login = (req, res) => {
     password: req.body.password
   }
 
-  const { valid, errors } = validateLoginData(user);
+  const {
+    valid,
+    errors
+  } = validateLoginData(user);
   if (!valid) {
     return res.status(400).json(errors)
   }
@@ -81,14 +104,16 @@ module.exports.login = (req, res) => {
       return data.user.getIdToken();
     })
     .then(token => {
-      return res.json({ token })
+      return res.json({
+        token
+      })
     })
     .catch(err => {
-      if (err.code = "auth/wrong-password") {
-        return res.status(500).json({ general: "Wrong credential, please try again" })
-      } else {
-        return res.status(500).json({ err: err.code })
-      }
+      // auth/wrong-password
+      // auth/user-not-user
+      return res.status(500).json({
+        general: "Wrong credential, please try again"
+      })
     })
 }
 //TODO  Add user details
@@ -96,11 +121,15 @@ module.exports.addUserDetails = (req, res) => {
   const userDetails = reducerUserDetails(req.body);
   db.doc(`/users/${req.user.handle}`).update(userDetails)
     .then(() => {
-      return res.json({ message: 'Update user successfully' });
+      return res.json({
+        message: 'Update user successfully'
+      });
     })
     .catch((err) => {
       console.error(err)
-      return res.status(500).json({ error: err.code })
+      return res.status(500).json({
+        error: err.code
+      })
     })
 }
 
@@ -131,10 +160,14 @@ module.exports.getUserDetails = (req, res) => {
           })
           .catch((err) => {
             console.error(err);
-            res.status(500).json({ err: err.code })
+            res.status(500).json({
+              err: err.code
+            })
           })
       } else {
-        res.json({ message: "user not found" })
+        res.json({
+          message: "user not found"
+        })
       }
     })
 }
@@ -174,7 +207,9 @@ module.exports.getAuthenticatedUser = (req, res) => {
     })
     .catch(err => {
       console.error(err);
-      res.status(500).json({ err: err.code })
+      res.status(500).json({
+        err: err.code
+      })
     })
 }
 
@@ -188,7 +223,9 @@ module.exports.uploadImage = (req, res) => {
 
   let imageFileName;
   let imageToBeUploaded = {};
-  const busboy = new Busboy({ headers: req.headers })
+  const busboy = new Busboy({
+    headers: req.headers
+  })
   busboy.on('file', (fieldName, file, filename, encoding, minetype) => {
     console.log("fieldName", fieldName);
     console.log("filename", filename);
@@ -198,27 +235,34 @@ module.exports.uploadImage = (req, res) => {
     // 1231389687.png
     imageFileName = `${Math.round(Math.random() * 100000000000000)}.${imageExtention}`;
     const filepath = path.join(os.tmpdir(), imageFileName);
-    imageToBeUploaded = { filepath, minetype };
+    imageToBeUploaded = {
+      filepath,
+      minetype
+    };
     file.pipe(fs.createWriteStream(filepath));
   });
   busboy.on('finish', () => {
     // Úp ảnh lên storage
     admin.storage().bucket(firebaseConfig.storageBucket).upload(imageToBeUploaded.filepath, { // return promise
-      resumable: false,
-      metadata: {
+        resumable: false,
         metadata: {
-          contentType: imageToBeUploaded.minetype
+          metadata: {
+            contentType: imageToBeUploaded.minetype
+          }
         }
-      }
-    })
+      })
       .then(() => {
         //*  ?alt=media thêm dòng này thì mở ảnh nó sẽ ko tự download vẻ mà chỉ show ra 
         //*  Thay đổi ảnh hiện tại
         const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageFileName}?alt=media`
-        return admin.firestore().doc(`/users/${req.user.handle}`).update({ imageUrl })
+        return admin.firestore().doc(`/users/${req.user.handle}`).update({
+          imageUrl
+        })
       })
       .then(() => {
-        res.json({ message: 'upload image successfully' });
+        res.json({
+          message: 'upload image successfully'
+        });
       })
       .catch(err => {
         console.log(err);
@@ -236,14 +280,20 @@ module.exports.markNotificationRead = (req, res) => {
   req.body.forEach(notificationId => {
     //Vào từng thông báo và update lại thằng read: true
     const notification = db.doc(`/notifications/${notificationId}`);
-    batch.update(notification, { read: true })
+    batch.update(notification, {
+      read: true
+    })
   })
   batch.commit() // return promise
     .then(() => {
-      return res.json({ message: 'Notifications Mark read' });
+      return res.json({
+        message: 'Notifications Mark read'
+      });
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).json({ err: err.code })
+      res.status(500).json({
+        err: err.code
+      })
     })
 }

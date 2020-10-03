@@ -1,6 +1,8 @@
 const app = require('express')();
 const functions = require('firebase-functions');
-const { db } = require('./util/admin')
+const {
+  db
+} = require('./util/admin')
 const {
   getAllScreams,
   postOneScream,
@@ -48,12 +50,12 @@ app.post('/notifications', FBauth, markNotificationRead)
 // Tạo ra functions kết hợp vs express để tạo ra url như thế này https://baseurl.com/api/screams
 exports.api = functions.https.onRequest(app);
 
+// Tạo 1 thông báo khi like scream
 exports.createNotifycationOnLike = functions.firestore.document('likes/{id}')
   .onCreate((snapshot) => {
     console.log("SNAPSHOT Create Comment: ", snapshot);
     console.log("DOC exists")
-
-    db.doc(`/screams/${snapshot.data().screamId}`).get()
+    return db.doc(`/screams/${snapshot.data().screamId}`).get()
       .then(doc => {
         if (doc.exists) {
           return db.doc(`/notifications/${snapshot.id}`).set({
@@ -71,6 +73,7 @@ exports.createNotifycationOnLike = functions.firestore.document('likes/{id}')
       })
   })
 
+// Khi unlike thì xóa thông báo like
 exports.deleteNotifycationOnUnlike = functions.firestore.document('likes/{id}')
   .onDelete(snapshot => {
     console.log("SNAPSHOT Delete Unlike: ", snapshot);
@@ -80,12 +83,12 @@ exports.deleteNotifycationOnUnlike = functions.firestore.document('likes/{id}')
       })
   })
 
+// Tạo 1 thông báo khi comment trên scream
 exports.createNotifycationOnComment = functions.firestore.document('comments/{id}')
   .onCreate((snapshot) => {
     console.log("SNAPSHOT Create Comment: ", snapshot);
     console.log("DOC exists")
-
-    db.doc(`/screams/${snapshot.data().screamId}`).get()
+    return db.doc(`/screams/${snapshot.data().screamId}`).get()
       .then(doc => {
         if (doc.exists) {
           console.log("DOC exists")
@@ -101,5 +104,55 @@ exports.createNotifycationOnComment = functions.firestore.document('comments/{id
       })
       .catch(err => {
         console.error(err);
+      })
+  })
+
+// Thay đổi ảnh đai diện thì ảnh đại diện ở scream cũng thay đổi theo
+exports.onUserChangeImage = functions.firestore.document(`users/{userId}`)
+  .onUpdate(change => {
+    console.log('Before Change:', change.before.data());
+    console.log('After Change:', change.after.data());
+    let batch = db.batch()
+    if (change.before.data() !== change.after.data()) {
+      return db.collection('screams').where('userHandle', '==', change.before.data().handle).get() //change.before.data().handle của users
+        .then((data) => {
+          data.forEach(doc => {
+            const scream = db.doc(`/screams/${doc.id}`);
+            batch.update(scream, {
+              userImage: change.after.data().imageUrl
+            }) // change.after.data().imageUrl của users      
+          })
+          return batch.commit();
+        })
+    }
+  })
+
+// Xóa 1 scream thì like và comment cũng xóa theo
+exports.onDeleteScream = functions.firestore.document('screams/{screamId}')
+  .onDelete((snapshot, context) => {
+    // Cần context thì context chứa params
+    const screamId = context.params.screamId;
+    let batch = db.batch();
+    return db.collection('comments').where('screamId', "==", screamId).get()
+      .then((data) => {
+        data.forEach(doc => {
+          batch.delete(db.doc(`/comments/${doc.id}`));
+        })
+        return db.collection('likes').where('screamId', "==", screamId).get()
+          .then((data) => {
+            data.forEach(doc => {
+              batch.delete(db.doc(`/likes/${doc.id}`));
+            })
+            return db.collection('notifications').where('screamId', "==", screamId).get()
+              .then((data) => {
+                data.forEach(doc => {
+                  batch.delete(db.doc(`/notifications/${doc.id}`));
+                })
+                return batch.commit();
+              })
+          })
+      })
+      .catch(err => {
+        console.err(err);
       })
   })
