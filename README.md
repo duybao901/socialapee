@@ -3,9 +3,12 @@
 https://sociala-f16cc.web.app/
 
 ## Author: Bao Duy
-sercer: Firebase
-client on http://localhost:3000
+
+## Sercer: Firebase
+
+## Client on http://localhost:3000
 User interface
 
-![UserInterface](https://user-images.githubusercontent.com/67371206/104798225-44ef3c80-57f7-11eb-8886-709342666286.PNG)
+![Captusre](https://user-images.githubusercontent.com/67371206/105006736-a1599280-5a69-11eb-9ae6-970e510f23ba.PNG)
+
 
